@@ -26,38 +26,43 @@
 
 (defn ->kebab-case [s]
   (-> (reduce
-        (fn [s c]
-          (if (and
-                (not-empty s)
-                (Character/isLowerCase (last s))
-                (Character/isUpperCase c))
-            (str s "-" c)
-            (str s c)))
-        "" s)
+       (fn [s c]
+         (if (and
+              (not-empty s)
+              (Character/isLowerCase (last s))
+              (Character/isUpperCase c))
+           (str s "-" c)
+           (str s c)))
+       "" s)
       (clojure.string/replace #"[\s]+" "-")
       (.replaceAll "_" "-")
       (.toLowerCase)))
 
 (def reserved-id -1)
 
-(defn mark-reserved [db table-name]
+(defn mark-reserved [db table-name database-name]
   (boolean
    (try
+     ;; TODO; change dbs
      (sql/insert! db table-name {:id reserved-id})
      (catch Exception _))))
 
-(defn mark-unreserved [db table-name]
+(defn mark-unreserved [db table-name database-name]
+  ;; TODO; change dbs
   (sql/delete! db table-name ["id=?" reserved-id]))
 
-(defn complete? [db table-name id]
+(defn complete? [db table-name database-name id]
+  ;; TODO; change dbs
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
 
-(defn mark-complete [db table-name id]
+(defn mark-complete [db table-name database-name id]
   (log/debug "marking" id "complete")
+  ;; TODO; change dbs
   (sql/insert! db table-name {:id id}))
 
-(defn mark-not-complete [db table-name id]
+(defn mark-not-complete [db table-name database-name id]
   (log/debug "marking" id "not complete")
+  ;; TODO; change dbs
   (sql/delete! db table-name ["id=?" id]))
 
 (def sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
@@ -83,7 +88,7 @@
       (log/error t "failed to execute command:\n" c "\n")
       (throw t))))
 
-(defn up* [db table-name id up modify-sql-fn]
+(defn up* [db table-name database-name id up modify-sql-fn]
   (if (mark-reserved db table-name)
     (try
       (sql/with-db-transaction
@@ -93,14 +98,14 @@
             (log/debug "found" (count commands) "up migrations")
             (doseq [c commands]
               (execute-command t-con table-name c id))
-            (mark-complete t-con table-name id)
+            (mark-complete t-con table-name database-name id)
             :success)))
       (finally
-        (mark-unreserved db table-name)))
+        (mark-unreserved db table-name database-name)))
     :ignore))
 
-(defn down* [db table-name id down modify-sql-fn]
-  (if (mark-reserved db table-name)
+(defn down* [db table-name database-name id down modify-sql-fn]
+  (if (mark-reserved db table-name database-name)
     (try
       (sql/with-db-transaction
         [t-con db]
@@ -110,10 +115,10 @@
             (doseq [c commands]
               (log/trace "executing" c)
               (sql/db-do-prepared t-con c))
-            (mark-not-complete t-con table-name id)
+            (mark-not-complete t-con table-name database-name id)
             :success)))
       (finally
-        (mark-unreserved db table-name)))
+        (mark-unreserved db table-name database-name)))
     :ignore))
 
 (def migration-file-pattern #"^(\d+)-([^\.]+)\.(up|down)\.sql$")
@@ -197,8 +202,8 @@
 
 (defn find-init-script-file [migration-dir init-script-name]
   (first
-    (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
-            (file-seq migration-dir))))
+   (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
+           (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
   (->> (.entries jar)
@@ -221,13 +226,14 @@
 (defn migration-table-name [config]
   (:migration-table-name config default-migrations-table))
 
+
 (defn parse-migration-id [id]
   (try
     (Long/parseLong id)
     (catch Exception e
       (log/error e (str "failed to parse migration id: " id)))))
 
-(defrecord Migration [db table-name id name up down modify-sql-fn]
+(defrecord Migration [db table-name database-name id name up down modify-sql-fn]
   proto/Migration
   (id [this]
     id)
@@ -235,11 +241,11 @@
     name)
   (up [this]
     (if up
-      (up* db table-name id up modify-sql-fn)
+      (up* db table-name database-name id up modify-sql-fn)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this]
     (if down
-      (down* db table-name id down modify-sql-fn)
+      (down* db table-name database-name id down modify-sql-fn)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn connect* [db]
@@ -263,11 +269,12 @@
          (map :id)
          (doall))))
 
-(defn migrations* [db migration-dir table-name init-script-name modify-sql-fn]
+(defn migrations* [db migration-dir table-name database-name init-script-name modify-sql-fn]
   (for [[id mig] (find-migrations migration-dir init-script-name)
         :let [{:strs [up down]} mig]]
     (Migration. db
                 table-name
+                database-name
                 (parse-migration-id (or (:id up) (:id down)))
                 (or (:name up) (:name down))
                 (:content up)
@@ -346,6 +353,7 @@
     (migrations* @(:connection config)
                  (:migration-dir config)
                  (migration-table-name config)
+                 (:migration-database-name config)
                  (get config :init-script default-init-script-name)
                  (get config :modify-sql-fn identity)))
   (create [this name]
