@@ -40,11 +40,16 @@
 
 (def reserved-id -1)
 
+(defn change-dbs
+  [db database-name]
+  (when database-name
+    (sql/execute! db [(format "use %" database-name) ])))
+
 (defn mark-reserved
   ([db table-name database-name]
    (boolean
     (try
-      ;; TODO; change dbs
+      (change-dbs db database-name)
       (sql/insert! db table-name {:id reserved-id})
       (catch Exception _))))
   ([db table-name]
@@ -53,26 +58,26 @@
 
 (defn mark-unreserved
   ([db table-name database-name]
-   ;; TODO; change dbs
+   (change-dbs db database-name)
    (sql/delete! db table-name ["id=?" reserved-id]))
   ([db table-name]
    (mark-unreserved db table-name nil)))
 
 (defn complete?
   ([db table-name database-name id]
-   ;; TODO; change dbs
+   (change-dbs db database-name)
    (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
   ([db table-name id]
    (complete? db table-name nil id)))
 
 (defn mark-complete [db table-name database-name id]
   (log/debug "marking" id "complete")
-  ;; TODO; change dbs
+   (change-dbs db database-name)
   (sql/insert! db table-name {:id id}))
 
 (defn mark-not-complete [db table-name database-name id]
   (log/debug "marking" id "not complete")
-  ;; TODO; change dbs
+   (change-dbs db database-name)
   (sql/delete! db table-name ["id=?" id]))
 
 (def sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
