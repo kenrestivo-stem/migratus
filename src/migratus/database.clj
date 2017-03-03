@@ -368,7 +368,7 @@
     (migrations* @(:connection config)
                  (:migration-dir config)
                  (migration-table-name config)
-                 (:migration-database-name config)
+                 (:migrations-database-name config)
                  (get config :init-script default-init-script-name)
                  (get config :modify-sql-fn identity)))
   (create [this name]
