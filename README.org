@@ -70,6 +70,15 @@
     :   PERFORM schema_name.function_name('foo', 10);
     : END;$func$;
 
+*** "Use" statements
+
+	You can embed "use" statements to do migrations on a number of different
+	databases (in MySQL, "schemas" in Postgres, etc.) if you add a parameter:
+	
+     : (def config {
+	 :         ;; .....
+     :              :migration-database-name        "migrations/"
+
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
