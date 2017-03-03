@@ -43,7 +43,7 @@
 (defn change-dbs
   [db database-name]
   (when database-name
-    (sql/execute! db [(format "use %" database-name) ])))
+    (sql/execute! db [(format "use %s" database-name) ])))
 
 (defn mark-reserved
   ([db table-name database-name]
@@ -65,17 +65,20 @@
 
 (defn complete?
   ([db table-name database-name id]
+   {:pre [(number? id)]}
    (change-dbs db database-name)
    (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
   ([db table-name id]
    (complete? db table-name nil id)))
 
 (defn mark-complete [db table-name database-name id]
+  {:pre [(number? id)]}
   (log/debug "marking" id "complete")
    (change-dbs db database-name)
   (sql/insert! db table-name {:id id}))
 
 (defn mark-not-complete [db table-name database-name id]
+  {:pre [(number? id)]}
   (log/debug "marking" id "not complete")
    (change-dbs db database-name)
   (sql/delete! db table-name ["id=?" id]))
@@ -243,6 +246,7 @@
 
 
 (defn parse-migration-id [id]
+  {:post [(< 1 %)]}
   (try
     (Long/parseLong id)
     (catch Exception e
