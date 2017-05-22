@@ -9,6 +9,9 @@
                  [org.clojure/java.classpath "0.2.3"]
                  [org.clojure/java.jdbc "0.6.2-alpha3"]
                  [org.clojure/tools.logging "0.3.1"]]
-  :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
+  :profiles {:test {:dependencies [[jar-migrations "1.0.0"]
+                                   [log4j "1.2.17"]
+                                   [com.h2database/h2 "1.4.190"]]}
+             :dev {:dependencies [[jar-migrations "1.0.0"]
                                   [log4j "1.2.17"]
                                   [com.h2database/h2 "1.4.190"]]}})

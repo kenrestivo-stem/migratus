@@ -55,18 +55,18 @@
 (deftest test-make-store
   (testing "should create default table name"
     (is (not (test-sql/verify-table-exists?
-               (dissoc config :migration-table-name) default-migrations-table)))
+              (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
-      (proto/make-store (dissoc config :migration-table-name))
-      (fn [config]
-        (is (test-sql/verify-table-exists? config default-migrations-table)))))
+     (proto/make-store (dissoc config :migration-table-name))
+     (fn [config]
+       (is (test-sql/verify-table-exists? config default-migrations-table)))))
   (test-sql/reset-db)
   (testing "should create schema_migrations table"
     (is (not (test-sql/verify-table-exists? config "foo_bar")))
     (test-with-store
-      (proto/make-store config)
-      (fn [config]
-        (is (test-sql/verify-table-exists? config "foo_bar"))))))
+     (proto/make-store config)
+     (fn [config]
+       (is (test-sql/verify-table-exists? config "foo_bar"))))))
 
 (deftest test-init
   (testing "db init"
@@ -227,3 +227,59 @@
                                    type
                                    (= java.sql.Timestamp))
                               from-db)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(comment
+
+  
+  (macroexpand-1 '(try-catch-mysql (/ 1 0) (println "error") (println "wtf")))
+  
+  (try-catch-mysql (/ 1 0) (println "error") (println "wtf"))
+
+  :foo
+
+
+  (require '[utilza.log :as ulog])
+
+  (def test-config (assoc config :migrations-dir "migrations-intentionally-broken"))
+
+  (proto/make-store test-config)
+
+  
+  (migrations/find-migration-files (io/file "migrations-intentionally-broken") #{"init.sql"})
+  
+  (ulog/catcher
+   (core/migrate (assoc config :migrations-dir "migrations-intentionally-broken")))
+
+
+  (ulog/catcher
+   (core/pending-list (assoc config :migrations-dir (io/file "test/migrations-intentionally-broken"))))
+
+
+  (ulog/catcher
+   (core/pending-list config))
+  
+  (let [from-db (verify-data config (:migration-table-name config))]
+    (testing "descriptions match")
+    (is (= (map #(dissoc % :applied) from-db)
+           '({:id 20111202110600,
+              :description "create-foo-table"}
+             {:id 20111202113000,
+              :description "create-bar-table"}
+             {:id 20120827170200,
+              :description "multiple-statements"})))
+    (testing "applied are timestamps")
+    (is (every? identity (map #(-> %
+                                   :applied
+                                   type
+                                   (= java.sql.Timestamp))
+                              from-db))))
+
+
+  (rest (re-matches #"^(\d+)-([^\.]+)((?:\.[^\.]+)+)$" "20111202110600-create-foo-table.down.sql"))
+
+
+  
+  )

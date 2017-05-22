@@ -84,3 +84,11 @@
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(comment
+
+
+  (find-migrations "migrations-intentionally-broken" #{"init.sql"})
+
+
+  )
